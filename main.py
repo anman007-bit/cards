@@ -496,7 +496,7 @@ class WinAnimation(Widget):
     Холст не чистится между кадрами - след копится сам собой.
     """
 
-    TOTAL_CARDS = 32
+    TOTAL_CARDS = 18
     LAUNCH_INTERVAL = 0.20
     FRAME_INTERVAL = 1 / 30.0
     GRAVITY = 1400.0
