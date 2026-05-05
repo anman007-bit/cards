@@ -1507,24 +1507,29 @@ class SpiderBoard(Widget):
         self._hint_highlight = None
         self._redraw()
 
-    def _tick_timer(self, dt):
-        if self.game and self.game.timer_running and not self.game.game_over:
-            self.game.elapsed_seconds += 1
-
     def _layout(self):
+        """Landscape-раскладка для Паука.
+        - Сверху: топбар с кнопками
+        - Под топбаром: 10 столбцов в ряд
+        - Справа от столбцов: колода
+        - Слева снизу: счётчик собранных 0/8
+        """
         # Топбар сверху - 8% высоты
         topbar_h = self.height * 0.08
         margin = self.width * 0.010
-        gap = self.width * 0.006
-        # 10 столбцов
+        gap = self.width * 0.005
+
+        # 10 столбцов + место справа под колоду (примерно 1.2 ширины карты)
         ncols = SpiderGame.NUM_COLUMNS
-        card_w = (self.width - 2 * margin - (ncols - 1) * gap) / ncols
+        # Резервируем справа место под колоду
+        usable_w = self.width - 2 * margin
+        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 1.2)
         card_h = card_w * 1.45
 
         # Зазор между топбаром и верхним рядом карт
         gap_top = self.height * 0.015
-        # Верхний ряд: счётчик собранных + колода
-        top_y = self.y + self.height - topbar_h - gap_top - card_h
+        # 10 столбцов начинаются прямо под топбаром
+        tableau_top = self.y + self.height - topbar_h - gap_top - card_h
 
         layout = {
             'card_w': card_w,
@@ -1534,17 +1539,20 @@ class SpiderBoard(Widget):
             'completed': None,
             'tableau': [],
         }
-        # Stock справа
-        stock_x = self.x + self.width - margin - card_w
-        layout['stock'] = (stock_x, top_y)
-        # Слева - индикатор собранных
-        layout['completed'] = (self.x + margin, top_y)
 
-        # 10 столбцов с большим зазором сверху
-        tableau_top = top_y - card_h * 1.15
+        # 10 столбцов слева
         for i in range(ncols):
             tx = self.x + margin + i * (card_w + gap)
             layout['tableau'].append((tx, tableau_top))
+
+        # Колода справа от столбцов, на той же высоте
+        stock_x = self.x + self.width - margin - card_w
+        layout['stock'] = (stock_x, tableau_top)
+
+        # Счётчик 0/8 - слева снизу (под столбцами)
+        comp_x = self.x + margin
+        comp_y = self.y + margin
+        layout['completed'] = (comp_x, comp_y)
 
         return layout
 
