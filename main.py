@@ -496,12 +496,12 @@ class WinAnimation(Widget):
     Холст не чистится между кадрами - след копится сам собой.
     """
 
-    TOTAL_CARDS = 52
-    LAUNCH_INTERVAL = 0.18
+    TOTAL_CARDS = 32
+    LAUNCH_INTERVAL = 0.20
     FRAME_INTERVAL = 1 / 30.0
     GRAVITY = 1400.0
-    BOUNCE_DAMP = 0.78
-    MIN_BOUNCE_VY = 80.0
+    BOUNCE_DAMP = 0.65
+    MIN_BOUNCE_VY = 120.0
 
     def __init__(self, foundations_xy, card_w, card_h, on_finished, **kwargs):
         super().__init__(**kwargs)
@@ -524,7 +524,7 @@ class WinAnimation(Widget):
         self._launch_acc = 0.0
         self._running = False
         self._frame_event = None
-        self._max_bounces = 4
+        self._max_bounces = 2
 
     def start(self):
         if self._running:
@@ -532,6 +532,19 @@ class WinAnimation(Widget):
         self._running = True
         self.canvas.clear()
         self._frame_event = Clock.schedule_interval(self._tick, self.FRAME_INTERVAL)
+        # Аварийная страховка - через 25 сек попап появится сам
+        Clock.schedule_once(self._safety_finish, 25.0)
+        # Подсказка "Тапни" чтоб мама знала что делать
+        hint = Label(
+            text='[ нажми на экран ]',
+            font_size=28,
+            bold=True,
+            color=(1, 1, 0.7, 1),
+            size_hint=(None, None),
+            size=(self.width, 50),
+            pos=(self.x, self.y + self.height - 80)
+        )
+        self.add_widget(hint)
 
     def stop(self):
         if not self._running:
@@ -604,20 +617,21 @@ class WinAnimation(Widget):
                 self._frame_event = None
 
     def on_touch_down(self, touch):
-        if not self._running and not self._flying:
-            if self._on_finished:
-                cb = self._on_finished
-                self._on_finished = None
-                cb()
-            return True
-        if self.collide_point(*touch.pos):
+        # Любой тап в любом состоянии - сразу показываем попап
+        self.stop()
+        if self._on_finished:
+            cb = self._on_finished
+            self._on_finished = None
+            cb()
+        return True
+
+    def _safety_finish(self, dt):
+        # Аварийная страховка - если за 25 сек попап не появился, показать сам
+        if self._on_finished:
+            cb = self._on_finished
+            self._on_finished = None
             self.stop()
-            if self._on_finished:
-                cb = self._on_finished
-                self._on_finished = None
-                cb()
-            return True
-        return False
+            cb()
 
 
 # ============================================================
