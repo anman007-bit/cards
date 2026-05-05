@@ -274,18 +274,16 @@ def draw_card_canvas(canvas, card, x, y, w, h, selected=False):
                     radius * 0.7
                 ), width=max(2.5, w * 0.05))
 
-    # Если открыта - рисуем масть в углах и в центре
+    # Если открыта - рисуем масть в углу и в центре
     if card.face_up:
         suit_color = SUIT_COLORS[card.suit]
-        # Маленькая масть СПРАВА ОТ РАНГА в верхней полоске
-        # (видна даже когда карта перекрыта другой картой в столбце)
-        small_size = w * 0.22
-        small_cy = y + h * 0.88
-        small_cx_left = x + w * 0.42   # справа от ранга
-        draw_suit(canvas, card.suit, small_cx_left, small_cy, small_size, suit_color)
-        # Маленькая масть в правом верхнем углу
-        small_cx_right = x + w * 0.80
-        draw_suit(canvas, card.suit, small_cx_right, small_cy, small_size, suit_color)
+        # Маленькая масть в ПРАВОМ верхнем углу
+        # (видна когда карта перекрыта другой картой в столбце,
+        #  не наезжает на ранг даже у "10")
+        small_size = w * 0.20
+        small_cy = y + h * 0.83
+        small_cx = x + w * 0.80   # правый верхний угол
+        draw_suit(canvas, card.suit, small_cx, small_cy, small_size, suit_color)
         # Большая масть в центре карты
         big_size = w * 0.50
         big_cx = x + w * 0.5
