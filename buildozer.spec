@@ -22,7 +22,7 @@ version = 1.0
 requirements = python3,kivy==2.3.0
 
 # ВЕРТИКАЛЬНАЯ ОРИЕНТАЦИЯ
-orientation = landscape
+orientation = portrait
 
 # Полноэкранный режим
 fullscreen = 0
