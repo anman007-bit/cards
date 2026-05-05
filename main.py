@@ -1512,21 +1512,19 @@ class SpiderBoard(Widget):
             self.game.elapsed_seconds += 1
 
     def _layout(self):
-        """Landscape-раскладка: 10 рядов по вертикали, карты растут вправо.
-        Игрок поворачивает телефон в горизонталь, тогда видит классический паук.
-        """
-        # Топбар сверху - 8% высоты (оставляем как было, не трогаем)
+        # Топбар сверху - 8% высоты
         topbar_h = self.height * 0.08
-        margin = self.height * 0.010
-        gap = self.height * 0.004
-
-        # 10 "столбцов" теперь идут по вертикали - сверху вниз
+        margin = self.width * 0.010
+        gap = self.width * 0.006
+        # 10 столбцов
         ncols = SpiderGame.NUM_COLUMNS
-        # Доступная высота под раскладку (без топбара)
-        usable_h = self.height - topbar_h - 2 * margin
-        # Высота одной карты считается от высоты экрана делённой на 10
-        card_h = (usable_h - (ncols - 1) * gap) / ncols
-        card_w = card_h * 1.45  # пропорции карты сохраняем (была card_w*1.45, теперь card_h*1.45)
+        card_w = (self.width - 2 * margin - (ncols - 1) * gap) / ncols
+        card_h = card_w * 1.45
+
+        # Зазор между топбаром и верхним рядом карт
+        gap_top = self.height * 0.015
+        # Верхний ряд: счётчик собранных + колода
+        top_y = self.y + self.height - topbar_h - gap_top - card_h
 
         layout = {
             'card_w': card_w,
@@ -1536,43 +1534,31 @@ class SpiderBoard(Widget):
             'completed': None,
             'tableau': [],
         }
-
-        # Колода справа сверху (под топбаром)
-        # Перенесём её в правый верх — там при повороте телефона она будет в правом нижнем углу
+        # Stock справа
         stock_x = self.x + self.width - margin - card_w
-        stock_y = self.y + self.height - topbar_h - margin - card_h
-        layout['stock'] = (stock_x, stock_y)
+        layout['stock'] = (stock_x, top_y)
+        # Слева - индикатор собранных
+        layout['completed'] = (self.x + margin, top_y)
 
-        # Индикатор собранных - левый верх (под топбаром)
-        comp_x = self.x + self.width - margin - card_w
-        comp_y = self.y + margin
-        layout['completed'] = (comp_x, comp_y)
-
-        # 10 рядов карт, начинаются слева
-        # Каждый ряд - своя горизонтальная "стопка" (бывший столбец)
-        tableau_left = self.x + margin
-        # Сверху вниз: первый ряд сверху, под топбаром
-        first_row_y = self.y + self.height - topbar_h - margin - card_h
+        # 10 столбцов с большим зазором сверху
+        tableau_top = top_y - card_h * 1.15
         for i in range(ncols):
-            ty = first_row_y - i * (card_h + gap)
-            layout['tableau'].append((tableau_left, ty))
+            tx = self.x + margin + i * (card_w + gap)
+            layout['tableau'].append((tx, tableau_top))
 
         return layout
 
-    def _calc_steps(self, pile, tx, cw, face_down_step, face_up_step):
-        """Шаги между картами в ряду (горизонтально). 
-        tx - левый X начала ряда, cw - ширина одной карты.
-        Карты растут вправо, ужимаем если не влезают по ширине."""
+    def _calc_steps(self, pile, ty, ch, face_down_step, face_up_step):
+        """Шаги между картами в столбце с учётом доступной высоты."""
         if len(pile.cards) <= 1:
             return []
         steps = []
         for c in pile.cards[:-1]:
             steps.append(face_down_step if not c.face_up else face_up_step)
-        total_w = sum(steps) + cw
-        # Доступная ширина = от tx до правого края виджета (минус место под колоду/счётчик)
-        available = self.x + self.width - tx - cw * 1.6
-        if total_w > available and available > cw:
-            scale = (available - cw) / (total_w - cw) if total_w > cw else 1.0
+        total_h = sum(steps) + ch
+        available = ty - self.y - ch * 0.1
+        if total_h > available and available > ch:
+            scale = (available - ch) / (total_h - ch) if total_h > ch else 1.0
             scale = max(0.25, scale)
             steps = [s * scale for s in steps]
         return steps
@@ -1589,9 +1575,9 @@ class SpiderBoard(Widget):
         cw = layout['card_w']
         ch = layout['card_h']
 
-        # Шаги между картами (теперь по горизонтали - карты растут вправо)
-        face_down_step = cw * 0.22
-        face_up_step = cw * 0.32
+        # Шаги между картами
+        face_down_step = ch * 0.18
+        face_up_step = ch * 0.30
 
         # === ВЕРХНИЙ РЯД ===
         # Колода - стопка рубашек справа
@@ -1659,14 +1645,14 @@ class SpiderBoard(Widget):
                         _Line(rounded_rectangle=(tx, ty, cw, ch, cw * 0.08), width=4)
                 continue
 
-            steps = self._calc_steps(pile, tx, cw, face_down_step, face_up_step)
-            cx = tx
+            steps = self._calc_steps(pile, ty, ch, face_down_step, face_up_step)
+            cy = ty
             for j, card in enumerate(pile.cards):
-                # Координата текущей карты (растём ВПРАВО)
+                # Координата текущей карты
                 if j == 0:
                     pass
                 else:
-                    cx += steps[j - 1]
+                    cy -= steps[j - 1]
 
                 # Выделена ли эта карта (выбор пользователя)
                 sel = False
@@ -1679,30 +1665,29 @@ class SpiderBoard(Widget):
                 if hint_src_idx and hint_src_idx[0] is pile and j >= hint_src_idx[1]:
                     sel = True
 
-                draw_card_canvas(self.canvas, card, cx, ty, cw, ch, selected=sel)
-                lbl = make_card_rank_label(card, cx, ty, cw, ch)
+                draw_card_canvas(self.canvas, card, tx, cy, cw, ch, selected=sel)
+                lbl = make_card_rank_label(card, tx, cy, cw, ch)
                 if lbl:
                     self._labels.append(lbl)
                     self.add_widget(lbl)
 
-            # Подсветка dst-столбца (рамка вокруг верхней карты, теперь самой ПРАВОЙ)
+            # Подсветка dst-столбца (рамка вокруг верхней карты)
             if hint_dst_pile is pile:
-                top_x_pos = tx
+                top_y_pos = ty
                 if len(pile.cards) > 1:
-                    top_x_pos = tx + sum(steps)
+                    top_y_pos = ty - sum(steps)
                 with self.canvas:
                     Color(1.0, 0.8, 0.2, 1)
                     from kivy.graphics import Line as _Line
-                    _Line(rounded_rectangle=(top_x_pos, ty, cw, ch, cw * 0.08), width=4)
+                    _Line(rounded_rectangle=(tx, top_y_pos, cw, ch, cw * 0.08), width=4)
 
     def _hit_test(self, pos):
-        """Определить во что попал палец. Возвращает (pile, idx).
-        Раскладка горизонтальная: карты растут ВПРАВО."""
+        """Определить во что попал палец. Возвращает (pile, idx)."""
         layout = self._layout()
         cw = layout['card_w']
         ch = layout['card_h']
-        face_down_step = cw * 0.22
-        face_up_step = cw * 0.32
+        face_down_step = ch * 0.18
+        face_up_step = ch * 0.30
 
         x, y = pos
         # Колода
@@ -1710,36 +1695,32 @@ class SpiderBoard(Widget):
         if sx <= x <= sx + cw and sy <= y <= sy + ch:
             return (self.game.stock, -1)
 
-        # 10 рядов (по вертикали) - проверяем по Y
+        # Столбцы
         for i, (tx, ty) in enumerate(layout['tableau']):
-            if not (ty <= y <= ty + ch):
+            if not (tx <= x <= tx + cw):
                 continue
             pile = self.game.tableau[i]
             if pile.is_empty():
                 # Тап по пустому слоту
-                if tx <= x <= tx + cw:
+                if ty <= y <= ty + ch:
                     return (pile, -2)
                 continue
-            steps = self._calc_steps(pile, tx, cw, face_down_step, face_up_step)
-            # Карты растут ВПРАВО, последняя - самая правая (видна целиком)
-            cx = tx
-            positions = [cx]
+            steps = self._calc_steps(pile, ty, ch, face_down_step, face_up_step)
+            cy = ty
+            positions = [cy]
             for s in steps:
-                cx += s
-                positions.append(cx)
-            # Хит-тест: проверяем справа налево (последняя сверху в z-order)
+                cy -= s
+                positions.append(cy)
             hit_idx = -1
             for j in range(len(pile.cards) - 1, -1, -1):
-                cx_j = positions[j]
+                cy_j = positions[j]
                 if j == len(pile.cards) - 1:
-                    # Целая карта (последняя видна полностью)
-                    if cx_j <= x <= cx_j + cw:
+                    if cy_j <= y <= cy_j + ch:
                         hit_idx = j
                         break
                 else:
-                    # Видна только левая полоска шириной step
                     s = steps[j]
-                    if cx_j <= x <= cx_j + s:
+                    if cy_j + ch - s <= y <= cy_j + ch:
                         hit_idx = j
                         break
             if hit_idx >= 0:
