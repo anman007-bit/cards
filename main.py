@@ -621,8 +621,8 @@ class KlondikeBoard(Widget):
             self._labels.append(cnt_lbl)
         else:
             recycle_lbl = Label(
-                text='RE',
-                font_size=max(22, int(ch * 0.35)),
+                text='↻',
+                font_size=max(28, int(ch * 0.50)),
                 bold=True,
                 color=(0.7, 0.7, 0.7, 1),
                 size_hint=(None, None),
@@ -801,14 +801,14 @@ class KlondikeBoard(Widget):
         s = self.game.elapsed_seconds % 60
         content = BoxLayout(orientation='vertical', spacing=20, padding=20)
         content.add_widget(Label(
-            text='POBEDA!\n' + str(m).zfill(2) + ':' + str(s).zfill(2),
+            text='ПОБЕДА!\nВремя: ' + str(m).zfill(2) + ':' + str(s).zfill(2),
             font_size=40,
             bold=True,
             halign='center'
         ))
         btn = Button(
-            text='Novaya partiya',
-            font_size=28,
+            text='Новая партия',
+            font_size=32,
             size_hint=(1, 0.4),
             background_color=(0.3, 0.7, 0.4, 1)
         )
@@ -976,11 +976,12 @@ class MenuScreen(Screen):
         layout.add_widget(Widget())
 
         hint = Label(
-            text='Двойной тап - старт',
-            font_size=28,
-            color=(0.8, 0.8, 0.8, 1),
+            text='Двойной тап — старт',
+            font_size=40,
+            bold=True,
+            color=(0.9, 0.9, 0.7, 1),
             size_hint_y=None,
-            height=50
+            height=70
         )
         layout.add_widget(hint)
 
@@ -1041,7 +1042,7 @@ class KlondikeScreen(Screen):
 
         # Справа: Undo и New (рядом, чтоб не налезали на колоду)
         self.btn_undo = Button(
-            text='Undo',
+            text='Отмена',
             font_size=24,
             bold=True,
             size_hint=(0.16, 0.07),
