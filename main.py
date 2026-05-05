@@ -70,7 +70,32 @@ def save_record(seconds, game_key):
             json.dump(data, f)
         return True
     except Exception:
-        return False
+            return False
+
+
+# ============================================================
+# УПРАВЛЕНИЕ ОРИЕНТАЦИЕЙ ЭКРАНА (Android)
+# ============================================================
+
+def set_orientation(mode):
+    """Принудительно поворачивает экран Android.
+    mode: 'portrait' или 'landscape'.
+    На ПК ничего не делает.
+    """
+    try:
+        from jnius import autoclass
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+        if mode == 'landscape':
+            PythonActivity.mActivity.setRequestedOrientation(
+                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            )
+        else:
+            PythonActivity.mActivity.setRequestedOrientation(
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            )
+    except Exception as e:
+        print('[ORIENT] не Android или ошибка:', e)
 
 
 # ============================================================
@@ -1971,6 +1996,7 @@ class SpiderScreen(Screen):
         self._bg.size = inst.size
 
     def _go_home(self, *a):
+        set_orientation('portrait')
         self.manager.transition.direction = 'right'
         self.manager.current = 'menu'
 
@@ -2170,10 +2196,12 @@ class CardGamesApp(App):
 
     def _start_game(self, key):
         if key == 'klondike':
+            set_orientation('portrait')
             self.klondike_screen.board.restart()
             self.sm.transition.direction = 'left'
             self.sm.current = 'klondike'
         elif key == 'spider':
+            set_orientation('landscape')
             self.spider_screen.board.restart()
             self.sm.transition.direction = 'left'
             self.sm.current = 'spider'
