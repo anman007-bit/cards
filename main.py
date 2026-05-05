@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-КАРТОЧНЫЕ ИГРЫ - версия 1.0
-- Главное меню: Косынка, Паук, Свободная ячейка
-- Косынка (Klondike) - полностью рабочая
-- Паук и Свободная ячейка - заглушки "скоро"
-- Карты рисуются кодом (без картинок)
-- Вертикальная ориентация (portrait)
+КАРТОЧНЫЕ ИГРЫ - версия 1.1
+- Масти рисуются графикой (без юникод-шрифтов)
+- Поправлено позиционирование кнопок
+- Поправлены пропорции карт в столбцах
 """
 
 import os
 import json
 import random
+import math
 
 from kivy.app import App
 from kivy.uix.widget import Widget
@@ -20,7 +19,9 @@ from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
-from kivy.graphics import Color, Rectangle, Line, RoundedRectangle, Ellipse
+from kivy.graphics import (Color, Rectangle, Line, RoundedRectangle, Ellipse,
+                           Triangle, Mesh)
+from kivy.graphics.tesselator import Tesselator
 from kivy.core.window import Window
 from kivy.clock import Clock
 
@@ -73,12 +74,6 @@ def save_record(seconds, game_key):
 # ============================================================
 
 SUITS = ['hearts', 'diamonds', 'clubs', 'spades']
-SUIT_SYMBOLS = {
-    'hearts': u'\u2665',     # ♥
-    'diamonds': u'\u2666',   # ♦
-    'clubs': u'\u2663',      # ♣
-    'spades': u'\u2660',     # ♠
-}
 SUIT_COLORS = {
     'hearts': (0.85, 0.15, 0.15),
     'diamonds': (0.85, 0.15, 0.15),
@@ -112,11 +107,125 @@ def make_deck():
 
 
 # ============================================================
-# ОТРИСОВКА КАРТ
+# РИСОВАНИЕ МАСТЕЙ ПРИМИТИВАМИ
+# ============================================================
+
+def draw_heart(canvas, cx, cy, size, color):
+    """Сердце ♥ с центром в (cx,cy) и шириной size."""
+    r, g, b = color
+    with canvas:
+        Color(r, g, b, 1)
+        # Два круга сверху
+        radius = size * 0.28
+        Ellipse(
+            pos=(cx - size * 0.5, cy - size * 0.05),
+            size=(size * 0.55, size * 0.55)
+        )
+        Ellipse(
+            pos=(cx - size * 0.05, cy - size * 0.05),
+            size=(size * 0.55, size * 0.55)
+        )
+        # Треугольник снизу
+        Triangle(points=[
+            cx - size * 0.5, cy + size * 0.18,
+            cx + size * 0.5, cy + size * 0.18,
+            cx, cy - size * 0.55
+        ])
+
+
+def draw_diamond(canvas, cx, cy, size, color):
+    """Бубна ♦ - повёрнутый ромб."""
+    r, g, b = color
+    with canvas:
+        Color(r, g, b, 1)
+        # 4 треугольника складываются в ромб
+        Triangle(points=[
+            cx, cy + size * 0.55,         # верх
+            cx - size * 0.4, cy,          # лево
+            cx + size * 0.4, cy           # право
+        ])
+        Triangle(points=[
+            cx, cy - size * 0.55,         # низ
+            cx - size * 0.4, cy,          # лево
+            cx + size * 0.4, cy           # право
+        ])
+
+
+def draw_club(canvas, cx, cy, size, color):
+    """Трефа ♣ - три круга + ножка."""
+    r, g, b = color
+    with canvas:
+        Color(r, g, b, 1)
+        cr = size * 0.30
+        # Верхний круг
+        Ellipse(
+            pos=(cx - cr, cy + size * 0.15),
+            size=(cr * 2, cr * 2)
+        )
+        # Левый круг
+        Ellipse(
+            pos=(cx - size * 0.45, cy - size * 0.20),
+            size=(cr * 2, cr * 2)
+        )
+        # Правый круг
+        Ellipse(
+            pos=(cx + size * 0.45 - cr * 2, cy - size * 0.20),
+            size=(cr * 2, cr * 2)
+        )
+        # Ножка - треугольник снизу
+        Triangle(points=[
+            cx - size * 0.20, cy - size * 0.10,
+            cx + size * 0.20, cy - size * 0.10,
+            cx, cy - size * 0.55
+        ])
+
+
+def draw_spade(canvas, cx, cy, size, color):
+    """Пика ♠ - перевёрнутое сердце + ножка."""
+    r, g, b = color
+    with canvas:
+        Color(r, g, b, 1)
+        # Два круга снизу (перевёрнутое сердце)
+        Ellipse(
+            pos=(cx - size * 0.5, cy - size * 0.45),
+            size=(size * 0.55, size * 0.55)
+        )
+        Ellipse(
+            pos=(cx - size * 0.05, cy - size * 0.45),
+            size=(size * 0.55, size * 0.55)
+        )
+        # Треугольник сверху
+        Triangle(points=[
+            cx - size * 0.5, cy - size * 0.20,
+            cx + size * 0.5, cy - size * 0.20,
+            cx, cy + size * 0.55
+        ])
+        # Ножка снизу
+        Triangle(points=[
+            cx - size * 0.20, cy - size * 0.50,
+            cx + size * 0.20, cy - size * 0.50,
+            cx, cy - size * 0.70
+        ])
+
+
+def draw_suit(canvas, suit, cx, cy, size, color):
+    """Универсальная функция - рисует масть."""
+    if suit == 'hearts':
+        draw_heart(canvas, cx, cy, size, color)
+    elif suit == 'diamonds':
+        draw_diamond(canvas, cx, cy, size, color)
+    elif suit == 'clubs':
+        draw_club(canvas, cx, cy, size, color)
+    elif suit == 'spades':
+        draw_spade(canvas, cx, cy, size, color)
+
+
+# ============================================================
+# РИСОВАНИЕ КАРТЫ
 # ============================================================
 
 def draw_card_canvas(canvas, card, x, y, w, h, selected=False):
-    """Рисует фон карты (без текста). Текст добавляется лейблами отдельно."""
+    """Рисует фон карты + если открыта - масть в углу и в центре."""
     radius = w * 0.08
 
     with canvas:
@@ -165,58 +274,43 @@ def draw_card_canvas(canvas, card, x, y, w, h, selected=False):
                     radius * 0.7
                 ), width=max(2.5, w * 0.05))
 
+    # Если открыта - рисуем масть в углу и в центре
+    if card.face_up:
+        suit_color = SUIT_COLORS[card.suit]
+        # Масть в левом верхнем углу - маленькая
+        small_size = w * 0.22
+        small_cx = x + w * 0.22
+        small_cy = y + h - h * 0.22
+        draw_suit(canvas, card.suit, small_cx, small_cy, small_size, suit_color)
+        # Большая масть по центру карты
+        big_size = w * 0.55
+        big_cx = x + w * 0.5
+        big_cy = y + h * 0.40
+        draw_suit(canvas, card.suit, big_cx, big_cy, big_size, suit_color)
 
-def make_card_labels(card, x, y, w, h):
-    """Создаёт лейблы текста для лицевой карты."""
-    labels = []
+
+def make_card_rank_label(card, x, y, w, h):
+    """Лейбл с рангом (числом или буквой) в верхней части карты.
+    Масти рисуются графикой - не нужны лейблы для них."""
     if not card.face_up:
-        return labels
+        return None
     r, g, b = SUIT_COLORS[card.suit]
-    suit_sym = SUIT_SYMBOLS[card.suit]
-
-    rank_font = max(18, int(h * 0.28))
-    suit_font = max(14, int(h * 0.20))
-    center_font = max(24, int(h * 0.40))
-
-    # Левый верх: ранг
+    # Ранг - в верхнем левом углу
+    rank_font = max(16, int(h * 0.25))
     rank_lbl = Label(
         text=card.rank,
         font_size=rank_font,
         bold=True,
         color=(r, g, b, 1),
         size_hint=(None, None),
-        size=(w * 0.40, h * 0.25),
-        pos=(x + w * 0.05, y + h * 0.70)
+        size=(w * 0.40, h * 0.22),
+        pos=(x + w * 0.05, y + h * 0.72)
     )
-    labels.append(rank_lbl)
-
-    # Левый верх: масть под рангом
-    suit_lbl = Label(
-        text=suit_sym,
-        font_size=suit_font,
-        color=(r, g, b, 1),
-        size_hint=(None, None),
-        size=(w * 0.40, h * 0.20),
-        pos=(x + w * 0.05, y + h * 0.50)
-    )
-    labels.append(suit_lbl)
-
-    # Большой символ масти в центре
-    center_lbl = Label(
-        text=suit_sym,
-        font_size=center_font,
-        color=(r, g, b, 1),
-        size_hint=(None, None),
-        size=(w * 0.7, h * 0.5),
-        pos=(x + w * 0.15, y + h * 0.20)
-    )
-    labels.append(center_lbl)
-
-    return labels
+    return rank_lbl
 
 
 # ============================================================
-# СТОПКА КАРТ
+# СТОПКА
 # ============================================================
 
 class Pile:
@@ -418,12 +512,15 @@ class KlondikeBoard(Widget):
             self.game.elapsed_seconds += 1
 
     def _layout(self):
+        # Резервируем место сверху для топбара (таймер + кнопки) ~10% от высоты
+        topbar_h = self.height * 0.10
         margin = self.width * 0.02
         gap = self.width * 0.012
         card_w = (self.width - 2 * margin - 6 * gap) / 7
         card_h = card_w * 1.4
 
-        top_y = self.y + self.height - margin - card_h - self.height * 0.08
+        # Верхний ряд (foundations + stock + waste) ниже топбара
+        top_y = self.y + self.height - topbar_h - card_h - margin
 
         layout = {
             'card_w': card_w,
@@ -444,13 +541,28 @@ class KlondikeBoard(Widget):
         layout['waste'] = (waste_x, top_y)
         layout['stock'] = (stock_x, top_y)
 
-        # 7 столбцов
+        # 7 столбцов с зазором от верхнего ряда
         tableau_top = top_y - card_h * 0.4
         for i in range(7):
             tx = self.x + margin + i * (card_w + gap)
             layout['tableau'].append((tx, tableau_top))
 
         return layout
+
+    def _calc_steps(self, pile, ty, ch, face_down_step, face_up_step):
+        """Высчитать шаги между картами в столбце с учётом доступной высоты."""
+        if len(pile.cards) <= 1:
+            return []
+        steps = []
+        for c in pile.cards[:-1]:
+            steps.append(face_down_step if not c.face_up else face_up_step)
+        total_h = sum(steps) + ch
+        available = ty - self.y - ch * 0.1
+        if total_h > available and available > ch:
+            scale = (available - ch) / (total_h - ch) if total_h > ch else 1.0
+            scale = max(0.3, scale)
+            steps = [s * scale for s in steps]
+        return steps
 
     def _redraw(self, *args):
         if not self.game:
@@ -480,7 +592,12 @@ class KlondikeBoard(Widget):
             if not f.is_empty():
                 top = f.top()
                 draw_card_canvas(self.canvas, top, fx, fy, cw, ch)
-                self._labels.extend(make_card_labels(top, fx, fy, cw, ch))
+                lbl = make_card_rank_label(top, fx, fy, cw, ch)
+                if lbl:
+                    self._labels.append(lbl)
+            else:
+                # Иконка масти-плейсхолдера? Пока просто пусто
+                pass
 
         # Stock
         sx, sy = layout['stock']
@@ -500,8 +617,8 @@ class KlondikeBoard(Widget):
             self._labels.append(cnt_lbl)
         else:
             recycle_lbl = Label(
-                text=u'\u21bb',  # ↻
-                font_size=max(28, int(ch * 0.5)),
+                text='RE',
+                font_size=max(22, int(ch * 0.35)),
                 bold=True,
                 color=(0.7, 0.7, 0.7, 1),
                 size_hint=(None, None),
@@ -516,31 +633,27 @@ class KlondikeBoard(Widget):
             top = self.game.waste.top()
             sel = (self.selected_pile is self.game.waste)
             draw_card_canvas(self.canvas, top, wx, wy, cw, ch, selected=sel)
-            self._labels.extend(make_card_labels(top, wx, wy, cw, ch))
+            lbl = make_card_rank_label(top, wx, wy, cw, ch)
+            if lbl:
+                self._labels.append(lbl)
 
         # Tableau
         face_down_step = ch * 0.10
-        face_up_step = ch * 0.22
+        face_up_step = ch * 0.24
         for i, (tx, ty) in enumerate(layout['tableau']):
             pile = self.game.tableau[i]
             if pile.is_empty():
                 continue
-            # Считаем общую высоту
-            steps = []
-            for c in pile.cards[:-1]:
-                steps.append(face_down_step if not c.face_up else face_up_step)
-            total_h = sum(steps) + ch
-            available = ty - self.y - cw * 0.1
-            if total_h > available:
-                scale = available / total_h
-                steps = [s * scale for s in steps]
+            steps = self._calc_steps(pile, ty, ch, face_down_step, face_up_step)
             cy = ty
             for j, card in enumerate(pile.cards):
                 sel = (self.selected_pile is pile and self.selected_idx is not None
                        and j >= self.selected_idx)
                 draw_card_canvas(self.canvas, card, tx, cy, cw, ch, selected=sel)
                 if card.face_up:
-                    self._labels.extend(make_card_labels(card, tx, cy, cw, ch))
+                    lbl = make_card_rank_label(card, tx, cy, cw, ch)
+                    if lbl:
+                        self._labels.append(lbl)
                 if j < len(pile.cards) - 1:
                     cy -= steps[j]
 
@@ -570,7 +683,7 @@ class KlondikeBoard(Widget):
                 return (f, len(f.cards) - 1)
 
         face_down_step = ch * 0.10
-        face_up_step = ch * 0.22
+        face_up_step = ch * 0.24
         for i, (tx, ty) in enumerate(layout['tableau']):
             pile = self.game.tableau[i]
             if not (tx <= x <= tx + cw):
@@ -579,14 +692,7 @@ class KlondikeBoard(Widget):
                 if ty <= y <= ty + ch:
                     return (pile, -2)
                 continue
-            steps = []
-            for c in pile.cards[:-1]:
-                steps.append(face_down_step if not c.face_up else face_up_step)
-            total_h = sum(steps) + ch
-            available = ty - self.y - cw * 0.1
-            if total_h > available:
-                scale = available / total_h
-                steps = [s * scale for s in steps]
+            steps = self._calc_steps(pile, ty, ch, face_down_step, face_up_step)
             cy = ty
             hit_idx = -1
             for j, card in enumerate(pile.cards):
@@ -687,13 +793,13 @@ class KlondikeBoard(Widget):
         s = self.game.elapsed_seconds % 60
         content = BoxLayout(orientation='vertical', spacing=20, padding=20)
         content.add_widget(Label(
-            text='ПОБЕДА!\nВремя: ' + str(m).zfill(2) + ':' + str(s).zfill(2),
+            text='POBEDA!\n' + str(m).zfill(2) + ':' + str(s).zfill(2),
             font_size=40,
             bold=True,
             halign='center'
         ))
         btn = Button(
-            text='Новая партия',
+            text='Novaya partiya',
             font_size=28,
             size_hint=(1, 0.4),
             background_color=(0.3, 0.7, 0.4, 1)
@@ -741,7 +847,8 @@ class CardGamePreview(Widget):
             x = cx + offsets[i] - cw / 2
             y = cy - i * 3
             draw_card_canvas(self.canvas, c, x, y, cw, ch)
-            for lbl in make_card_labels(c, x, y, cw, ch):
+            lbl = make_card_rank_label(c, x, y, cw, ch)
+            if lbl:
                 self.add_widget(lbl)
 
 
@@ -893,31 +1000,45 @@ class KlondikeScreen(Screen):
             self._bg = Rectangle(pos=outer.pos, size=outer.size)
         outer.bind(size=self._upd_bg, pos=self._upd_bg)
 
-        self.board = KlondikeBoard(size_hint=(1, 1))
+        # Игровое поле занимает 90% высоты снизу
+        self.board = KlondikeBoard(
+            size_hint=(1, 1),
+            pos_hint={'x': 0, 'y': 0}
+        )
         outer.add_widget(self.board)
 
-        btn_size = (90, 90)
-
+        # Топбар - кнопки и таймер - в самом верху
+        # Слева: кнопка "назад"
         self.btn_home = Button(
             text='<',
             font_size=44,
             bold=True,
-            size_hint=(None, None),
-            size=btn_size,
+            size_hint=(0.12, 0.07),
             pos_hint={'x': 0.01, 'top': 0.99},
-            background_color=(0.4, 0.5, 0.7, 0.9)
+            background_color=(0.4, 0.5, 0.7, 0.95)
         )
         self.btn_home.bind(on_release=self._go_home)
         outer.add_widget(self.btn_home)
 
+        # Центр: таймер
+        self.timer_label = Label(
+            text='00:00',
+            font_size=44,
+            bold=True,
+            color=(1, 1, 1, 1),
+            size_hint=(0.3, 0.07),
+            pos_hint={'center_x': 0.5, 'top': 0.99}
+        )
+        outer.add_widget(self.timer_label)
+
+        # Справа: Undo и New (рядом, чтоб не налезали на колоду)
         self.btn_undo = Button(
             text='Undo',
             font_size=24,
             bold=True,
-            size_hint=(None, None),
-            size=btn_size,
-            pos_hint={'right': 0.99, 'top': 0.88},
-            background_color=(0.5, 0.4, 0.7, 0.9)
+            size_hint=(0.16, 0.07),
+            pos_hint={'right': 0.83, 'top': 0.99},
+            background_color=(0.5, 0.4, 0.7, 0.95)
         )
         self.btn_undo.bind(on_release=self._undo)
         outer.add_widget(self.btn_undo)
@@ -926,24 +1047,12 @@ class KlondikeScreen(Screen):
             text='+',
             font_size=44,
             bold=True,
-            size_hint=(None, None),
-            size=btn_size,
-            pos_hint={'right': 0.99, 'top': 0.77},
-            background_color=(0.5, 0.3, 0.3, 0.9)
+            size_hint=(0.12, 0.07),
+            pos_hint={'right': 0.99, 'top': 0.99},
+            background_color=(0.5, 0.3, 0.3, 0.95)
         )
         self.btn_new.bind(on_release=self._new_game)
         outer.add_widget(self.btn_new)
-
-        self.timer_label = Label(
-            text='00:00',
-            font_size=44,
-            bold=True,
-            color=(1, 1, 1, 1),
-            size_hint=(None, None),
-            size=(180, 60),
-            pos_hint={'center_x': 0.5, 'top': 0.99}
-        )
-        outer.add_widget(self.timer_label)
 
         self.add_widget(outer)
         Clock.schedule_interval(self._update_timer, 0.5)
