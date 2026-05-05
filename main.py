@@ -277,15 +277,15 @@ def draw_card_canvas(canvas, card, x, y, w, h, selected=False):
     # Если открыта - рисуем масть в углу и в центре
     if card.face_up:
         suit_color = SUIT_COLORS[card.suit]
-        # Масть в левом верхнем углу - маленькая
-        small_size = w * 0.22
-        small_cx = x + w * 0.22
-        small_cy = y + h - h * 0.22
+        # Маленькая масть под рангом в левом верхнем углу
+        small_size = w * 0.20
+        small_cx = x + w * 0.18
+        small_cy = y + h * 0.55
         draw_suit(canvas, card.suit, small_cx, small_cy, small_size, suit_color)
-        # Большая масть по центру карты
-        big_size = w * 0.55
+        # Большая масть в центре-низу карты (не налезает на ранг сверху)
+        big_size = w * 0.45
         big_cx = x + w * 0.5
-        big_cy = y + h * 0.40
+        big_cy = y + h * 0.30
         draw_suit(canvas, card.suit, big_cx, big_cy, big_size, suit_color)
 
 
@@ -295,16 +295,16 @@ def make_card_rank_label(card, x, y, w, h):
     if not card.face_up:
         return None
     r, g, b = SUIT_COLORS[card.suit]
-    # Ранг - в верхнем левом углу
-    rank_font = max(16, int(h * 0.25))
+    # Ранг - вверху по левому краю карты, поверх масти
+    rank_font = max(16, int(h * 0.22))
     rank_lbl = Label(
         text=card.rank,
         font_size=rank_font,
         bold=True,
         color=(r, g, b, 1),
         size_hint=(None, None),
-        size=(w * 0.40, h * 0.22),
-        pos=(x + w * 0.05, y + h * 0.72)
+        size=(w * 0.35, h * 0.20),
+        pos=(x + w * 0.03, y + h * 0.78)
     )
     return rank_lbl
 
@@ -512,15 +512,19 @@ class KlondikeBoard(Widget):
             self.game.elapsed_seconds += 1
 
     def _layout(self):
-        # Резервируем место сверху для топбара (таймер + кнопки) ~10% от высоты
-        topbar_h = self.height * 0.10
-        margin = self.width * 0.02
-        gap = self.width * 0.012
+        # Топбар сверху - 8% высоты
+        topbar_h = self.height * 0.08
+        # Боковые отступы побольше чтоб карты были не такие широкие
+        margin = self.width * 0.015
+        gap = self.width * 0.008
         card_w = (self.width - 2 * margin - 6 * gap) / 7
-        card_h = card_w * 1.4
+        # Высота карт - 1.45 от ширины (стандартная карточная пропорция)
+        card_h = card_w * 1.45
 
-        # Верхний ряд (foundations + stock + waste) ниже топбара
-        top_y = self.y + self.height - topbar_h - card_h - margin
+        # Зазор между топбаром и верхним рядом карт
+        gap_top = self.height * 0.015
+        # Верхний ряд (foundations + stock + waste)
+        top_y = self.y + self.height - topbar_h - gap_top - card_h
 
         layout = {
             'card_w': card_w,
@@ -541,8 +545,8 @@ class KlondikeBoard(Widget):
         layout['waste'] = (waste_x, top_y)
         layout['stock'] = (stock_x, top_y)
 
-        # 7 столбцов с зазором от верхнего ряда
-        tableau_top = top_y - card_h * 0.4
+        # 7 столбцов с увеличенным зазором от верхнего ряда
+        tableau_top = top_y - card_h * 0.55
         for i in range(7):
             tx = self.x + margin + i * (card_w + gap)
             layout['tableau'].append((tx, tableau_top))
