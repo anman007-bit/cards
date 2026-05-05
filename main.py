@@ -487,6 +487,140 @@ class KlondikeGame:
 
 
 # ============================================================
+# АНИМАЦИЯ ПОБЕДЫ - "прыгающие карты" в стиле классики Windows
+# ============================================================
+
+class WinAnimation(Widget):
+    """Поверх поля. Карты по очереди вылетают из 4 фундаментов,
+    падают вниз с гравитацией, отскакивают от нижнего края, оставляя след.
+    Холст не чистится между кадрами - след копится сам собой.
+    """
+
+    TOTAL_CARDS = 52
+    LAUNCH_INTERVAL = 0.18
+    FRAME_INTERVAL = 1 / 30.0
+    GRAVITY = 1400.0
+    BOUNCE_DAMP = 0.78
+    MIN_BOUNCE_VY = 80.0
+
+    def __init__(self, foundations_xy, card_w, card_h, on_finished, **kwargs):
+        super().__init__(**kwargs)
+        self._foundations_xy = list(foundations_xy)
+        self._card_w = card_w
+        self._card_h = card_h
+        self._on_finished = on_finished
+
+        self._queue = []
+        for suit in SUITS:
+            for rank in RANKS:
+                c = Card(rank, suit)
+                c.face_up = True
+                self._queue.append(c)
+        random.shuffle(self._queue)
+        self._queue = self._queue[:self.TOTAL_CARDS]
+
+        self._flying = []
+        self._next_foundation = 0
+        self._launch_acc = 0.0
+        self._running = False
+        self._frame_event = None
+        self._max_bounces = 4
+
+    def start(self):
+        if self._running:
+            return
+        self._running = True
+        self.canvas.clear()
+        self._frame_event = Clock.schedule_interval(self._tick, self.FRAME_INTERVAL)
+
+    def stop(self):
+        if not self._running:
+            return
+        self._running = False
+        if self._frame_event:
+            self._frame_event.cancel()
+            self._frame_event = None
+        self._flying = []
+
+    def _launch_one(self):
+        if not self._queue:
+            return
+        card = self._queue.pop(0)
+        fx, fy = self._foundations_xy[self._next_foundation % 4]
+        self._next_foundation += 1
+        direction = random.choice([-1, 1])
+        vx = direction * random.uniform(120, 320)
+        vy = random.uniform(-50, 50)
+        self._flying.append({
+            'x': float(fx),
+            'y': float(fy),
+            'vx': vx,
+            'vy': vy,
+            'card': card,
+            'bounces': 0,
+        })
+
+    def _tick(self, dt):
+        if not self._running:
+            return
+        self._launch_acc += dt
+        while self._launch_acc >= self.LAUNCH_INTERVAL and self._queue:
+            self._launch_acc -= self.LAUNCH_INTERVAL
+            self._launch_one()
+
+        floor_y = self.y
+        left_x = self.x
+        right_x = self.x + self.width
+
+        still_flying = []
+        for f in self._flying:
+            f['vy'] -= self.GRAVITY * dt
+            f['x'] += f['vx'] * dt
+            f['y'] += f['vy'] * dt
+
+            if f['y'] <= floor_y:
+                f['y'] = floor_y
+                if abs(f['vy']) < self.MIN_BOUNCE_VY:
+                    f['bounces'] = self._max_bounces
+                else:
+                    f['vy'] = -f['vy'] * self.BOUNCE_DAMP
+                    f['vx'] *= 0.92
+                    f['bounces'] += 1
+
+            draw_card_canvas(self.canvas, f['card'],
+                             f['x'], f['y'],
+                             self._card_w, self._card_h)
+
+            if (f['bounces'] < self._max_bounces and
+                    f['x'] > left_x - self._card_w * 2 and
+                    f['x'] < right_x + self._card_w):
+                still_flying.append(f)
+
+        self._flying = still_flying
+
+        if not self._queue and not self._flying:
+            if self._frame_event:
+                self._frame_event.cancel()
+                self._frame_event = None
+
+    def on_touch_down(self, touch):
+        if not self._running and not self._flying:
+            if self._on_finished:
+                cb = self._on_finished
+                self._on_finished = None
+                cb()
+            return True
+        if self.collide_point(*touch.pos):
+            self.stop()
+            if self._on_finished:
+                cb = self._on_finished
+                self._on_finished = None
+                cb()
+            return True
+        return False
+
+
+# ============================================================
 # ПОЛЕ КОСЫНКИ
 # ============================================================
 
@@ -499,11 +633,20 @@ class KlondikeBoard(Widget):
         self.last_tap_time = 0
         self.last_tap_target = None
         self._labels = []
+        self._win_anim = None
         self.bind(size=self._redraw, pos=self._redraw)
         self.restart()
         Clock.schedule_interval(self._tick_timer, 1)
 
     def restart(self):
+        if self._win_anim is not None:
+            try:
+                self._win_anim.stop()
+                if self._win_anim.parent:
+                    self._win_anim.parent.remove_widget(self._win_anim)
+            except Exception:
+                pass
+            self._win_anim = None
         self.game = KlondikeGame()
         self.selected_pile = None
         self.selected_idx = None
@@ -796,9 +939,37 @@ class KlondikeBoard(Widget):
             current_record = load_record('klondike')
             if current_record is None or self.game.elapsed_seconds < current_record:
                 save_record(self.game.elapsed_seconds, 'klondike')
-            self._show_win_popup()
+            self._start_win_animation()
+
+    def _start_win_animation(self):
+        layout = self._layout()
+        foundations_xy = list(layout['foundations'])
+        cw = layout['card_w']
+        ch = layout['card_h']
+        anim = WinAnimation(
+            foundations_xy=foundations_xy,
+            card_w=cw,
+            card_h=ch,
+            on_finished=self._show_win_popup,
+            size=self.size,
+            pos=self.pos,
+        )
+        self.selected_pile = None
+        self.selected_idx = None
+        self._redraw()
+        self.add_widget(anim)
+        self._win_anim = anim
+        anim.start()
 
     def _show_win_popup(self):
+        if self._win_anim is not None:
+            try:
+                self._win_anim.stop()
+                if self._win_anim.parent:
+                    self._win_anim.parent.remove_widget(self._win_anim)
+            except Exception:
+                pass
+            self._win_anim = None
         m = self.game.elapsed_seconds // 60
         s = self.game.elapsed_seconds % 60
         content = BoxLayout(orientation='vertical', spacing=20, padding=20)
