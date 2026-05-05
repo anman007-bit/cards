@@ -545,8 +545,8 @@ class KlondikeBoard(Widget):
         layout['waste'] = (waste_x, top_y)
         layout['stock'] = (stock_x, top_y)
 
-        # 7 столбцов с увеличенным зазором от верхнего ряда
-        tableau_top = top_y - card_h * 0.55
+        # 7 столбцов с большим зазором от верхнего ряда (чтоб не перекрывали)
+        tableau_top = top_y - card_h * 1.15
         for i in range(7):
             tx = self.x + margin + i * (card_w + gap)
             layout['tableau'].append((tx, tableau_top))
@@ -697,18 +697,22 @@ class KlondikeBoard(Widget):
                     return (pile, -2)
                 continue
             steps = self._calc_steps(pile, ty, ch, face_down_step, face_up_step)
+            # Считаем позицию каждой карты, потом ищем самую нижнюю под пальцем
+            card_positions = []
             cy = ty
-            hit_idx = -1
             for j, card in enumerate(pile.cards):
+                card_positions.append(cy)
                 if j < len(pile.cards) - 1:
-                    visible_top = cy + ch
-                    visible_bottom = cy + ch - steps[j]
-                    if visible_bottom <= y <= visible_top:
-                        hit_idx = j
                     cy -= steps[j]
-                else:
-                    if cy <= y <= cy + ch:
-                        hit_idx = j
+            # Идём с КОНЦА (нижняя карта стека = последняя в списке = верхняя по факту)
+            # Картa j занимает прямоугольник (tx, card_positions[j], cw, ch)
+            # Но видна только верхняя полоска кроме последней которая видна вся
+            hit_idx = -1
+            for j in range(len(pile.cards) - 1, -1, -1):
+                cy = card_positions[j]
+                if cy <= y <= cy + ch:
+                    hit_idx = j
+                    break
             if hit_idx >= 0:
                 return (pile, hit_idx)
         return (None, None)
