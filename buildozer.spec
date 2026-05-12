@@ -18,10 +18,10 @@ source.include_exts = py,png,jpg,kv,atlas,ttf
 # Версия
 version = 1.0
 
-# Зависимости
-requirements = hostpython3==3.11.5,python3==3.11.5,kivy==2.3.0
+# Зависимости (стабильная связка для Android)
+requirements = python3==3.11.5,kivy==2.3.0
 
-# ВЕРТИКАЛЬНАЯ ОРИЕНТАЦИЯ
+# Ориентация — разрешаем все, переключаем из кода
 orientation = all
 
 # Полноэкранный режим
@@ -33,14 +33,23 @@ android.permissions = WAKE_LOCK
 # Минимальная версия Android (5.0)
 android.minapi = 21
 
-# Целевая версия
+# Целевая версия Android (Android 13)
 android.api = 33
+
+# Фиксируем NDK 25b — стабильная и проверенная версия для Kivy 2.3.0
+android.ndk = 25b
+
+# SDK
+android.sdk = 33
 
 # Архитектура
 android.archs = arm64-v8a
 
 # Принять лицензии
 android.accept_sdk_license = True
+
+# Версия p4a fork (стабильная для kivy 2.3.0)
+p4a.branch = master
 
 [buildozer]
 
