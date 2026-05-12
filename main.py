@@ -24,10 +24,6 @@ from kivy.graphics import (Color, Rectangle, Line, RoundedRectangle, Ellipse,
 from kivy.graphics.tesselator import Tesselator
 from kivy.core.window import Window
 from kivy.clock import Clock
-from kivy.config import Config
-
-# Принудительно горизонтальная ориентация (как в маджонге)
-Config.set('graphics', 'orientation', 'landscape')
 
 
 # ============================================================
