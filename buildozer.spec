@@ -22,7 +22,7 @@ version = 1.0
 requirements = python3==3.11.5,kivy==2.3.0
 
 # Ориентация — разрешаем все, переключаем из кода
-orientation = all
+orientation = sensor
 
 # Полноэкранный режим
 fullscreen = 0
