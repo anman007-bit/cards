@@ -22,7 +22,7 @@ version = 1.0
 requirements = hostpython3==3.11.5,python3==3.11.5,kivy==2.3.0
 
 # Ориентация — разрешаем все, переключаем из кода
-orientation = portrait, landscape, portrait-reverse, landscape-reverse
+orientation = portrait
 
 # Полноэкранный режим
 fullscreen = 0
