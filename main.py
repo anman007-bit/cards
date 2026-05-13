@@ -2033,7 +2033,7 @@ class MenuScreen(Screen):
         layout.add_widget(CardGameMenuItem(
             'Косынка', 'klondike', True, self._select_game))
         layout.add_widget(CardGameMenuItem(
-            'Паук', 'spider', True, self._select_game))
+            'Паук', 'spider', False, self._select_game))
         layout.add_widget(CardGameMenuItem(
             'Свободная ячейка', 'freecell', False, self._select_game))
 
@@ -2172,9 +2172,6 @@ class CardGamesApp(App):
         self.klondike_screen = KlondikeScreen(name='klondike')
         sm.add_widget(self.klondike_screen)
 
-        self.spider_screen = SpiderScreen(name='spider')
-        sm.add_widget(self.spider_screen)
-
         self.sm = sm
         return sm
 
@@ -2183,10 +2180,6 @@ class CardGamesApp(App):
             self.klondike_screen.board.restart()
             self.sm.transition.direction = 'left'
             self.sm.current = 'klondike'
-        elif key == 'spider':
-            self.spider_screen.board.restart()
-            self.sm.transition.direction = 'left'
-            self.sm.current = 'spider'
 
 
 if __name__ == '__main__':
