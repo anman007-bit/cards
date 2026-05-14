@@ -1558,7 +1558,7 @@ class SpiderBoard(Widget):
         ncols = SpiderGame.NUM_COLUMNS
         # В сумме надо вместить: 10 столбцов + ~0.8 (счётчик слева) + ~1.7 (колода справа+отступ)
         usable_w = self.width - 2 * margin
-        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 2.5)
+        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 2.8)
         card_h = card_w * 1.40
 
         # Столбцы начинаются под топбаром с маленьким отступом, чтобы карты не прилипали к кнопкам
@@ -1911,6 +1911,7 @@ class SpiderBoard(Widget):
         anim.start()
 
     def _show_win_popup(self):
+        # Сначала убираем виджет анимации с накопленным следом
         if self._win_anim is not None:
             try:
                 self._win_anim.stop()
@@ -1919,6 +1920,12 @@ class SpiderBoard(Widget):
             except Exception:
                 pass
             self._win_anim = None
+        # Перерисовываем чистое поле, потом через 0.1 сек открываем попап
+        # (иначе попап теряется пока движок занят анимацией)
+        self._redraw()
+        Clock.schedule_once(self._open_win_popup, 0.1)
+
+    def _open_win_popup(self, dt):
         m = self.game.elapsed_seconds // 60
         s = self.game.elapsed_seconds % 60
         content = BoxLayout(orientation='vertical', spacing=20, padding=20)
