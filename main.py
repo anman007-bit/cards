@@ -1594,18 +1594,38 @@ class SpiderBoard(Widget):
         return layout
 
     def _calc_steps(self, pile, ty, ch, face_down_step, face_up_step):
-        """Шаги между картами в столбце с учётом доступной высоты."""
-        if len(pile.cards) <= 1:
+        """Шаги между картами в столбце.
+        Если столбец из 3+ карт - распределяем их так, чтобы низ последней
+        карты был возле нижнего края экрана (но не выходил за него).
+        Если карт мало (1-2) - используем базовые шаги без растяжения.
+        """
+        n = len(pile.cards)
+        if n <= 1:
             return []
-        steps = []
+        # Базовые шаги
+        base_steps = []
         for c in pile.cards[:-1]:
-            steps.append(face_down_step if not c.face_up else face_up_step)
-        total_h = sum(steps) + ch
-        available = ty - self.y - ch * 0.1
-        if total_h > available and available > ch:
-            scale = (available - ch) / (total_h - ch) if total_h > ch else 1.0
-            scale = max(0.25, scale)
-            steps = [s * scale for s in steps]
+            base_steps.append(face_down_step if not c.face_up else face_up_step)
+        base_total = sum(base_steps)
+        # Целевое суммарное расстояние - чтобы низ последней карты был на margin_bottom от низа экрана
+        margin_bottom = ch * 0.05
+        target_total = ty - self.y - margin_bottom
+        if target_total <= 0:
+            return base_steps
+        # Если карт мало и базовая длина короткая - не растягиваем сильно
+        # Иначе - растягиваем или сжимаем чтобы вписаться в target_total
+        if n <= 2:
+            # 2 карты - просто базовый шаг (одна карта, второй шаг под ней)
+            return base_steps
+        # Растягиваем/сжимаем пропорционально
+        if base_total > 0:
+            scale = target_total / base_total
+            # Ограничиваем максимум - не делаем шаг больше базового * 1.5 (иначе разрыв)
+            # Минимум - 0.20 (сильное сжатие для очень длинных столбцов)
+            scale = max(0.20, min(1.5, scale))
+            steps = [s * scale for s in base_steps]
+        else:
+            steps = base_steps
         return steps
 
     def _redraw(self, *args):
