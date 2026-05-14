@@ -31,6 +31,26 @@ from kivy.clock import Clock
 # ============================================================
 
 def get_records_file():
+    """Возвращает путь к файлу рекордов.
+    На Android используем primary_external_storage (Android/data/<пакет>/files)
+    - эта папка переживает переустановку APK.
+    Если не получилось - fallback на внутреннюю память."""
+    try:
+        from android.storage import primary_external_storage_path
+        from jnius import autoclass
+        # Папка приложения во внешней памяти: /storage/emulated/0/Android/data/<пакет>/files
+        ext_root = primary_external_storage_path()
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        pkg = PythonActivity.mActivity.getPackageName()
+        path = os.path.join(ext_root, 'Android', 'data', pkg, 'files')
+        try:
+            os.makedirs(path, exist_ok=True)
+            return os.path.join(path, 'cards_records.json')
+        except Exception:
+            pass
+    except Exception:
+        pass
+    # Fallback: внутренняя память (старое поведение)
     try:
         from android.storage import app_storage_path
         path = app_storage_path()
