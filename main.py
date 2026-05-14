@@ -789,18 +789,22 @@ class KlondikeBoard(Widget):
         return layout
 
     def _calc_steps(self, pile, ty, ch, face_down_step, face_up_step):
-        """Шаги между картами в столбце с учётом доступной высоты."""
+        """Шаги между картами в столбце с учётом доступной высоты.
+        ty - Y нижнего левого угла верхней карты столбца.
+        Низ последней карты = ty - sum(steps). Он не должен уйти ниже self.y.
+        Значит максимум sum(steps) = ty - self.y - margin_bottom.
+        """
         if len(pile.cards) <= 1:
             return []
         steps = []
         for c in pile.cards[:-1]:
             steps.append(face_down_step if not c.face_up else face_up_step)
-        total_h = sum(steps) + ch
-        available = ty - self.y - ch * 0.05
-        if total_h > available and available > ch:
-            scale = (available - ch) / (total_h - ch) if total_h > ch else 1.0
-            # Минимум 0.12 - позволяет очень длинным столбцам сжаться сильнее
-            scale = max(0.12, scale)
+        total_steps = sum(steps)
+        margin_bottom = ch * 0.05  # маленький зазор от низа экрана
+        max_total_steps = ty - self.y - margin_bottom
+        if total_steps > max_total_steps and max_total_steps > 0:
+            scale = max_total_steps / total_steps
+            scale = max(0.20, scale)
             steps = [s * scale for s in steps]
         return steps
 
@@ -1617,7 +1621,7 @@ class SpiderBoard(Widget):
         ch = layout['card_h']
 
         # Шаги между картами - открытые перекрываются меньше, чтобы ранг было видно
-        face_down_step = ch * 0.10
+        face_down_step = ch * 0.18
         face_up_step = ch * 0.36
 
         # === ВЕРХНИЙ РЯД ===
