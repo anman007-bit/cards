@@ -789,17 +789,18 @@ class KlondikeBoard(Widget):
         return layout
 
     def _calc_steps(self, pile, ty, ch, face_down_step, face_up_step):
-        """Высчитать шаги между картами в столбце с учётом доступной высоты."""
+        """Шаги между картами в столбце с учётом доступной высоты."""
         if len(pile.cards) <= 1:
             return []
         steps = []
         for c in pile.cards[:-1]:
             steps.append(face_down_step if not c.face_up else face_up_step)
         total_h = sum(steps) + ch
-        available = ty - self.y - ch * 0.1
+        available = ty - self.y - ch * 0.05
         if total_h > available and available > ch:
             scale = (available - ch) / (total_h - ch) if total_h > ch else 1.0
-            scale = max(0.3, scale)
+            # Минимум 0.12 - позволяет очень длинным столбцам сжаться сильнее
+            scale = max(0.12, scale)
             steps = [s * scale for s in steps]
         return steps
 
@@ -1551,13 +1552,14 @@ class SpiderBoard(Widget):
         # Резервируем: слева - узкая колонка под счётчик "X/8" (~0.6 ширины карты),
         # справа - колоду (~1.2 ширины карты)
         ncols = SpiderGame.NUM_COLUMNS
-        # В сумме надо вместить: 10 столбцов + 0.8 (счётчик слева) + 1.5 (колода справа+отступ) = 12.3
+        # В сумме надо вместить: 10 столбцов + ~0.8 (счётчик слева) + ~1.7 (колода справа+отступ)
         usable_w = self.width - 2 * margin
-        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 2.3)
+        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 2.5)
         card_h = card_w * 1.40
 
-        # Столбцы начинаются СРАЗУ под топбаром (без gap_top), чтобы было больше места внизу
-        tableau_top = self.y + self.height - topbar_h - card_h
+        # Столбцы начинаются под топбаром с маленьким отступом, чтобы карты не прилипали к кнопкам
+        gap_top = self.height * 0.012
+        tableau_top = self.y + self.height - topbar_h - gap_top - card_h
 
         layout = {
             'card_w': card_w,
@@ -1741,26 +1743,30 @@ class SpiderBoard(Widget):
                 cy -= s
                 positions.append(cy)
 
-            # Перебираем карты СВЕРХУ ВНИЗ (от верхней к нижней), ищем первую попавшую
-            # под палец карту. Верхняя в z-order - последняя в списке pile.cards.
-            # Каждая карта (кроме последней) видна только верхней полоской высотой step[j].
+            # Хит-тест для карт в столбце.
+            # Нижняя (последняя) карта - вся целиком.
+            # Карты выше - от своего верха до верха следующей карты (полная видимая зона).
             hit_idx = -1
             n = len(pile.cards)
-            # Сначала проверяем нижнюю (последнюю) карту - её зона приоритетна
-            if n > 0:
-                last_y = positions[n - 1]
-                if last_y <= y <= last_y + ch:
-                    hit_idx = n - 1
-            # Если не попали в нижнюю - ищем "по полоске" среди остальных
-            if hit_idx < 0:
-                for j in range(n - 1):
-                    cy_j = positions[j]
-                    s = steps[j] if j < len(steps) else (ch * 0.30)
-                    # Видимая полоска карты j: от (cy_j + ch - s) до (cy_j + ch)
-                    if cy_j + ch - s <= y <= cy_j + ch:
+            # Перебираем СВЕРХУ ВНИЗ z-order (от нижней визуально - последний индекс),
+            # к верхней визуально (первый индекс). Берём первую попавшую под палец.
+            for j in range(n - 1, -1, -1):
+                cy_j = positions[j]
+                if j == n - 1:
+                    # Нижняя карта - целиком
+                    if cy_j <= y <= cy_j + ch:
                         hit_idx = j
                         break
-            # Если попали в закрытую карту - перенаправляем на верхнюю открытую
+                else:
+                    # Карта j: зона тапа = от верха карты j до верха карты (j+1).
+                    # Верх карты j = cy_j + ch. Верх карты (j+1) = positions[j+1] + ch.
+                    # Высота зоны = (cy_j + ch) - (positions[j+1] + ch) = cy_j - positions[j+1] = steps[j]
+                    # Но мы дадим больше - до верха карты j (тапнул на любую видимую часть)
+                    top_of_next = positions[j + 1] + ch  # где начинается видимая часть карты j+1
+                    if top_of_next <= y <= cy_j + ch:
+                        hit_idx = j
+                        break
+            # Если попали в закрытую карту - перенаправляем на верхнюю открытую в этом столбце
             if hit_idx >= 0 and not pile.cards[hit_idx].face_up:
                 for k in range(n - 1, -1, -1):
                     if pile.cards[k].face_up:
