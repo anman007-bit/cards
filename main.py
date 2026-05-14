@@ -1593,7 +1593,7 @@ class SpiderBoard(Widget):
         ch = layout['card_h']
 
         # Шаги между картами - открытые перекрываются меньше, чтобы ранг было видно
-        face_down_step = ch * 0.18
+        face_down_step = ch * 0.10
         face_up_step = ch * 0.36
 
         # === ВЕРХНИЙ РЯД ===
