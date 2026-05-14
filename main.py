@@ -1551,9 +1551,9 @@ class SpiderBoard(Widget):
         # Резервируем: слева - узкая колонка под счётчик "X/8" (~0.6 ширины карты),
         # справа - колоду (~1.2 ширины карты)
         ncols = SpiderGame.NUM_COLUMNS
-        # В сумме надо вместить: 10 столбцов + 0.6 (счётчик слева) + 1.2 (колода справа) = 11.8
+        # В сумме надо вместить: 10 столбцов + 0.8 (счётчик слева) + 1.5 (колода справа+отступ) = 12.3
         usable_w = self.width - 2 * margin
-        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 1.8)
+        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 2.3)
         card_h = card_w * 1.40
 
         # Столбцы начинаются СРАЗУ под топбаром (без gap_top), чтобы было больше места внизу
@@ -1740,30 +1740,31 @@ class SpiderBoard(Widget):
             for s in steps:
                 cy -= s
                 positions.append(cy)
+
+            # Перебираем карты СВЕРХУ ВНИЗ (от верхней к нижней), ищем первую попавшую
+            # под палец карту. Верхняя в z-order - последняя в списке pile.cards.
+            # Каждая карта (кроме последней) видна только верхней полоской высотой step[j].
             hit_idx = -1
-            # Перебираем карты СНИЗУ ВВЕРХ (от нижней к верхней)
-            for j in range(len(pile.cards) - 1, -1, -1):
-                cy_j = positions[j]
-                if j == len(pile.cards) - 1:
-                    # Самая нижняя (последняя) карта - целая зона
-                    if cy_j <= y <= cy_j + ch:
+            n = len(pile.cards)
+            # Сначала проверяем нижнюю (последнюю) карту - её зона приоритетна
+            if n > 0:
+                last_y = positions[n - 1]
+                if last_y <= y <= last_y + ch:
+                    hit_idx = n - 1
+            # Если не попали в нижнюю - ищем "по полоске" среди остальных
+            if hit_idx < 0:
+                for j in range(n - 1):
+                    cy_j = positions[j]
+                    s = steps[j] if j < len(steps) else (ch * 0.30)
+                    # Видимая полоска карты j: от (cy_j + ch - s) до (cy_j + ch)
+                    if cy_j + ch - s <= y <= cy_j + ch:
                         hit_idx = j
                         break
-                else:
-                    # Карты выше - проверяем "видимую полоску"
-                    s = steps[j]
-                    if cy_j + ch - s <= y <= cy_j + ch:
-                        # Если эта карта закрыта - не выбираем её,
-                        # а ищем ближайшую открытую сверху
-                        if not pile.cards[j].face_up:
-                            # Ищем первую открытую карту выше или ниже
-                            # (палец на рубашке = выделяем верхнюю открытую карту столбца)
-                            for k in range(len(pile.cards) - 1, -1, -1):
-                                if pile.cards[k].face_up:
-                                    hit_idx = k
-                                    break
-                            break
-                        hit_idx = j
+            # Если попали в закрытую карту - перенаправляем на верхнюю открытую
+            if hit_idx >= 0 and not pile.cards[hit_idx].face_up:
+                for k in range(n - 1, -1, -1):
+                    if pile.cards[k].face_up:
+                        hit_idx = k
                         break
             if hit_idx >= 0:
                 return (pile, hit_idx)
