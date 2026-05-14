@@ -2001,6 +2001,7 @@ class SpiderScreen(Screen):
             self.board.restart()
 
     def _go_home(self, *a):
+        set_orientation('portrait')
         self.manager.transition.direction = 'right'
         self.manager.current = 'menu'
 
@@ -2200,10 +2201,12 @@ class CardGamesApp(App):
 
     def _start_game(self, key):
         if key == 'klondike':
+            set_orientation('portrait')
             self.klondike_screen.board.restart()
             self.sm.transition.direction = 'left'
             self.sm.current = 'klondike'
         elif key == 'spider':
+            set_orientation('landscape')
             self.sm.transition.direction = 'left'
             self.sm.current = 'spider'
 
