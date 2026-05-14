@@ -1528,12 +1528,12 @@ class SpiderBoard(Widget):
         margin = self.width * 0.010
         gap = self.width * 0.005
 
-        # 10 столбцов + место справа под колоду (примерно 1.2 ширины карты)
+        # 10 столбцов + место справа под колоду + место слева под счётчик 0/8
         ncols = SpiderGame.NUM_COLUMNS
-        # Резервируем справа место под колоду
+        # Резервируем справа место под колоду и слева под счётчик
         usable_w = self.width - 2 * margin
-        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 1.2)
-        card_h = card_w * 1.45
+        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 1.6)
+        card_h = card_w * 1.40
 
         # Зазор между топбаром и верхним рядом карт
         gap_top = self.height * 0.015
@@ -1592,9 +1592,9 @@ class SpiderBoard(Widget):
         cw = layout['card_w']
         ch = layout['card_h']
 
-        # Шаги между картами
+        # Шаги между картами - открытые перекрываются меньше, чтобы ранг было видно
         face_down_step = ch * 0.18
-        face_up_step = ch * 0.30
+        face_up_step = ch * 0.36
 
         # === ВЕРХНИЙ РЯД ===
         # Колода - стопка рубашек справа
