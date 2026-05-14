@@ -1528,17 +1528,16 @@ class SpiderBoard(Widget):
         margin = self.width * 0.010
         gap = self.width * 0.005
 
-        # 10 столбцов + место справа под колоду + место слева под счётчик 0/8
+        # Резервируем: слева - узкая колонка под счётчик "X/8" (~0.6 ширины карты),
+        # справа - колоду (~1.2 ширины карты)
         ncols = SpiderGame.NUM_COLUMNS
-        # Резервируем справа место под колоду и слева под счётчик
+        # В сумме надо вместить: 10 столбцов + 0.6 (счётчик слева) + 1.2 (колода справа) = 11.8
         usable_w = self.width - 2 * margin
-        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 1.6)
+        card_w = (usable_w - (ncols - 1) * gap) / (ncols + 1.8)
         card_h = card_w * 1.40
 
-        # Зазор между топбаром и верхним рядом карт
-        gap_top = self.height * 0.015
-        # 10 столбцов начинаются прямо под топбаром
-        tableau_top = self.y + self.height - topbar_h - gap_top - card_h
+        # Столбцы начинаются СРАЗУ под топбаром (без gap_top), чтобы было больше места внизу
+        tableau_top = self.y + self.height - topbar_h - card_h
 
         layout = {
             'card_w': card_w,
@@ -1549,18 +1548,21 @@ class SpiderBoard(Widget):
             'tableau': [],
         }
 
-        # 10 столбцов слева
+        # Узкая колонка слева под счётчик
+        left_col_w = card_w * 0.8
+        # 10 столбцов справа от счётчика
+        tableau_start_x = self.x + margin + left_col_w + gap
         for i in range(ncols):
-            tx = self.x + margin + i * (card_w + gap)
+            tx = tableau_start_x + i * (card_w + gap)
             layout['tableau'].append((tx, tableau_top))
 
-        # Колода справа от столбцов, на той же высоте
+        # Колода справа от столбцов
         stock_x = self.x + self.width - margin - card_w
         layout['stock'] = (stock_x, tableau_top)
 
-        # Счётчик 0/8 - слева снизу (под столбцами)
+        # Счётчик "X/8" - в левой колонке, по вертикали по центру столбцов
         comp_x = self.x + margin
-        comp_y = self.y + margin
+        comp_y = self.y + self.height * 0.45  # ~середина по высоте
         layout['completed'] = (comp_x, comp_y)
 
         return layout
@@ -1614,26 +1616,16 @@ class SpiderBoard(Widget):
                 from kivy.graphics import Line as _Line
                 _Line(rounded_rectangle=(sx, sy, cw, ch, cw * 0.08), width=2)
 
-        # Индикатор собранных комплектов слева
+        # Счётчик "X/8" - слева от столбцов, по центру по вертикали
         cx, cy = layout['completed']
-        if self.game.completed > 0:
-            # Рисуем последний собранный комплект как одну карту
-            fake = Card('K', 'spades')
-            fake.face_up = True
-            draw_card_canvas(self.canvas, fake, cx, cy, cw, ch)
-            lbl = make_card_rank_label(fake, cx, cy, cw, ch)
-            if lbl:
-                self._labels.append(lbl)
-                self.add_widget(lbl)
-        # Счётчик "X/8"
         cnt_lbl = Label(
             text=str(self.game.completed) + '/8',
-            font_size=max(20, int(ch * 0.30)),
+            font_size=max(28, int(ch * 0.45)),
             bold=True,
             color=(1, 1, 0.7, 1),
             size_hint=(None, None),
-            size=(cw, ch * 0.4),
-            pos=(cx + cw + 10, cy + ch * 0.3)
+            size=(cw * 0.8, ch * 0.6),
+            pos=(cx, cy)
         )
         self._labels.append(cnt_lbl)
         self.add_widget(cnt_lbl)
@@ -1729,15 +1721,28 @@ class SpiderBoard(Widget):
                 cy -= s
                 positions.append(cy)
             hit_idx = -1
+            # Перебираем карты СНИЗУ ВВЕРХ (от нижней к верхней)
             for j in range(len(pile.cards) - 1, -1, -1):
                 cy_j = positions[j]
                 if j == len(pile.cards) - 1:
+                    # Самая нижняя (последняя) карта - целая зона
                     if cy_j <= y <= cy_j + ch:
                         hit_idx = j
                         break
                 else:
+                    # Карты выше - проверяем "видимую полоску"
                     s = steps[j]
                     if cy_j + ch - s <= y <= cy_j + ch:
+                        # Если эта карта закрыта - не выбираем её,
+                        # а ищем ближайшую открытую сверху
+                        if not pile.cards[j].face_up:
+                            # Ищем первую открытую карту выше или ниже
+                            # (палец на рубашке = выделяем верхнюю открытую карту столбца)
+                            for k in range(len(pile.cards) - 1, -1, -1):
+                                if pile.cards[k].face_up:
+                                    hit_idx = k
+                                    break
+                            break
                         hit_idx = j
                         break
             if hit_idx >= 0:
