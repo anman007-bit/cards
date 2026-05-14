@@ -1484,10 +1484,17 @@ class SpiderBoard(Widget):
         self._win_anim = None
         self._hint_highlight = None
         self._hint_clear_event = None
-        # ВРЕМЕННО: не запускаем игру и таймер, чтобы локализовать баг
-        # self.bind(size=self._redraw, pos=self._redraw)
-        # self.restart()
-        # Clock.schedule_interval(self._tick_timer, 1)
+        # Bind на size/pos чтобы перерисоваться при изменении размера
+        self.bind(size=self._safe_redraw, pos=self._safe_redraw)
+        Clock.schedule_interval(self._tick_timer, 1)
+
+    def _safe_redraw(self, *a):
+        """Перерисовка только если размер валиден и игра существует."""
+        if self.width <= 1 or self.height <= 1:
+            return
+        if self.game is None:
+            return
+        self._redraw()
 
     def restart(self):
         if self._win_anim is not None:
@@ -1735,6 +1742,8 @@ class SpiderBoard(Widget):
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):
             return False
+        if self.game is None:
+            return True
         if self.game.game_over:
             return True
 
@@ -1902,6 +1911,7 @@ class SpiderBoard(Widget):
 class SpiderScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.bind(on_pre_enter=self._on_enter)
         outer = FloatLayout()
 
         with outer.canvas.before:
@@ -1980,6 +1990,11 @@ class SpiderScreen(Screen):
     def _upd_bg(self, inst, val):
         self._bg.pos = inst.pos
         self._bg.size = inst.size
+
+    def _on_enter(self, *a):
+        """Запускаем игру когда пользователь заходит на экран."""
+        if self.board.game is None:
+            self.board.restart()
 
     def _go_home(self, *a):
         self.manager.transition.direction = 'right'
