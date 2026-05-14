@@ -28,7 +28,7 @@ orientation = portrait, landscape
 fullscreen = 0
 
 # Разрешения
-android.permissions = WAKE_LOCK
+android.permissions = WAKE_LOCK, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
 
 # Минимальная версия Android (5.0)
 android.minapi = 21
