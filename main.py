@@ -1482,11 +1482,12 @@ class SpiderBoard(Widget):
         self.last_tap_target = None
         self._labels = []
         self._win_anim = None
-        self._hint_highlight = None  # (src_pile, src_idx, dst_pile)
+        self._hint_highlight = None
         self._hint_clear_event = None
-        self.bind(size=self._redraw, pos=self._redraw)
-        self.restart()
-        Clock.schedule_interval(self._tick_timer, 1)
+        # ВРЕМЕННО: не запускаем игру и таймер, чтобы локализовать баг
+        # self.bind(size=self._redraw, pos=self._redraw)
+        # self.restart()
+        # Clock.schedule_interval(self._tick_timer, 1)
 
     def restart(self):
         if self._win_anim is not None:
@@ -2172,19 +2173,8 @@ class CardGamesApp(App):
         self.klondike_screen = KlondikeScreen(name='klondike')
         sm.add_widget(self.klondike_screen)
 
-        # Минимальный тестовый Spider экран - проверяем что не он ломает приложение
-        from kivy.uix.screenmanager import Screen as _Scr
-        spider_test = _Scr(name='spider')
-        spider_test_box = BoxLayout(orientation='vertical')
-        spider_test_box.add_widget(Label(
-            text='Паук - временно отключён',
-            font_size=40, bold=True, color=(1,1,1,1)))
-        back_btn = Button(text='Назад', font_size=32, size_hint_y=0.2)
-        back_btn.bind(on_release=lambda *a: setattr(self.sm, 'current', 'menu'))
-        spider_test_box.add_widget(back_btn)
-        spider_test.add_widget(spider_test_box)
-        sm.add_widget(spider_test)
-        self.spider_screen = spider_test
+        self.spider_screen = SpiderScreen(name='spider')
+        sm.add_widget(self.spider_screen)
 
         self.sm = sm
         return sm
