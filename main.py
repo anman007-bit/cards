@@ -1496,6 +1496,11 @@ class SpiderBoard(Widget):
             return
         self._redraw()
 
+    def _tick_timer(self, dt):
+        """Каждую секунду тикает таймер игры."""
+        if self.game and self.game.timer_running and not self.game.game_over:
+            self.game.elapsed_seconds += 1
+
     def restart(self):
         if self._win_anim is not None:
             try:
@@ -1911,7 +1916,6 @@ class SpiderBoard(Widget):
 class SpiderScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.bind(on_pre_enter=self._on_enter)
         outer = FloatLayout()
 
         with outer.canvas.before:
@@ -1991,7 +1995,7 @@ class SpiderScreen(Screen):
         self._bg.pos = inst.pos
         self._bg.size = inst.size
 
-    def _on_enter(self, *a):
+    def on_pre_enter(self, *a):
         """Запускаем игру когда пользователь заходит на экран."""
         if self.board.game is None:
             self.board.restart()
